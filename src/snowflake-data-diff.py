@@ -73,7 +73,7 @@ def load_sf_db_list(count):
 count_in = 0
 try:
     col1, col2 = st.columns(2)
-    
+
     with col1:
         col1.header("Source Table")
         count_in = 1
