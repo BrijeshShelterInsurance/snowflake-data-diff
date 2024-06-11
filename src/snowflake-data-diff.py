@@ -50,10 +50,10 @@ SNOWFLAKE_CONN_INFO = {
     "driver": "snowflake",
     "user": st.secrets.snowflake.user,
     "account": st.secrets.snowflake.account,
-    "database": "RAW",
+    "database": "COMPARE_DATABASE",
     "warehouse": st.secrets.snowflake.warehouse,
     "role": st.secrets.snowflake.role,
-    "schema": "JAFFLE_SHOP",
+    "schema": "APP",
     "password": st.secrets.snowflake.password
 }
 
