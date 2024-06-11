@@ -51,10 +51,8 @@ def convert_df_csv(df):
 # Load Snowflake DB list and other selections
 def load_sf_db_list(count):
     try:
-        db_list = run_query_sf(
-        "SELECT DATABASE_NAME, date_trunc( 'second', CONVERT_TIMEZONE(" + current_tz +
-        ", CREATED) ) as CREATED_TIME,DATABASE_OWNER, COMMENT FROM  SNOWFLAKE.INFORMATION_SCHEMA.DATABASES ORDER BY CREATED_TIME DESC;")
-
+        db_list = run_query_sf(f"SELECT DATABASE_NAME, CONVERT_TIMEZONE('{current_tz}', CREATED) as CREATED_TIME, DATABASE_OWNER, COMMENT FROM SNOWFLAKE.INFORMATION_SCHEMA.DATABASES ORDER BY CREATED_TIME DESC;")
+        
         if not db_list:
             raise ValueError("No databases found.")
         db_list_df = pd.DataFrame(db_list, columns=['DATABASE_NAME', 'CREATED', 'DATABASE_OWNER', 'COMMENT'])
