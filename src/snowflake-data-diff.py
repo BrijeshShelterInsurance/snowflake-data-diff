@@ -70,66 +70,67 @@ def load_sf_db_list(count):
     return full_qual_name, key_column_name, tuple(column_list_df['column_name'])
 
 # Main application logic
-count_in_1 = 1
-count_in_2 = 100
-
-col1, col2 = st.columns(2)
-
-with col1:
-    col1.header("Source Table")
-    full_qual_source_name, source_key_col, source_col_list = load_sf_db_list(count_in_1)
-    st.write(full_qual_source_name)
-
-with col2:
-    col2.header("Target Table")
-    full_qual_target_name, target_key_col, target_col_list = load_sf_db_list(count_in_2)
-    st.write(full_qual_target_name)
-
-if st.button('Show Table Diff', use_container_width=True):
-    snowflake_table = connect_to_table(SNOWFLAKE_CONN_INFO, full_qual_source_name, source_key_col)
-    snowflake_table2 = connect_to_table(SNOWFLAKE_CONN_INFO, full_qual_target_name, target_key_col)
-    materialize_table_name = f"{full_qual_target_name}_DIFF"
-
-    for different_row in diff_tables(snowflake_table, snowflake_table2, extra_columns=source_col_list, materialize_to_table=materialize_table_name):
-        pass
-
-    diff_op = pd.read_sql_query(f"SELECT * FROM {materialize_table_name};", conn)
-    not_in_target = diff_op.loc[(diff_op['is_exclusive_a']) & (~diff_op['is_exclusive_b'])]
-    not_in_source = diff_op.loc[(~diff_op['is_exclusive_a']) & (diff_op['is_exclusive_b'])]
-    value_mismatch = diff_op.loc[(~diff_op['is_exclusive_a']) & (~diff_op['is_exclusive_b'])]
-
-    total_not_in_target = len(not_in_target)
-    total_not_in_source = len(not_in_source)
-    total_value_mismatch = len(value_mismatch)
-
-    fig_count = make_subplots(rows=1, cols=3, specs=[[{"type": "indicator"}, {"type": "indicator"}, {"type": "indicator"}]], horizontal_spacing=0, vertical_spacing=0)
-
-    fig_count.add_trace(go.Indicator(mode="number", value=total_not_in_target, title="<b>Missing in Target</b>", number={'font_color': 'red'}), row=1, col=1)
-    fig_count.add_trace(go.Indicator(mode="number", value=total_not_in_source, title="<b>Missing in Source</b>", number={'font_color': 'black'}), row=1, col2)
-    fig_count.add_trace(go.Indicator(mode="number", value=total_value_mismatch, title="<b>Value Mismatch</b>", number={'font_color': 'orange'}), row=1, col3)
-
-    fig_count.update_layout(font_family="Arial", margin=dict(l=10, r=10, t=10, b=10), width=800, height=300)
-    st.plotly_chart(fig_count, use_container_width=True)
-
-    col1, col2, col3 = st.columns(3)
-
+count_in = 0
+try:
+    col1, col2 = st.columns(2)
+    
     with col1:
-        st.subheader("Missing in Target Table")
-        not_in_target_csv = convert_df_csv(not_in_target)
-        st.download_button("Click to Download", not_in_target_csv, "not_in_target.csv", "text/csv", key='download-csv-not_in_target')
-        st.write(not_in_target[f"{source_key_col}_a"])
+        col1.header("Source Table")
+        count_in = 1
+        full_qual_source_name, source_key_col, source_col_list = load_sf_db_list(count_in)
+        st.write(full_qual_source_name)
 
     with col2:
-        st.subheader("Missing in Source Table")
-        not_in_source_csv = convert_df_csv(not_in_source)
-        st.download_button("Click to Download", not_in_source_csv, "not_in_source.csv", "text/csv", key='download-csv-not_in_source')
-        st.write(not_in_source[f"{source_key_col}_b"])
+        col2.header("Target Table")
+        count_in = 100
+        full_qual_target_name, target_key_col, target_col_list = load_sf_db_list(count_in)
+        st.write(full_qual_target_name)
 
-    with col3:
-        st.subheader("Value Mismatch")
-        value_mismatch_csv = convert_df_csv(value_mismatch)
-        st.download_button("Click to Download", value_mismatch_csv, "value_mismatch.csv", "text/csv", key='download-csv-value_mismatch')
-        st.write(value_mismatch[f"{source_key_col}_a"])
+    if st.button('Show Table Diff', use_container_width=True):
+        snowflake_table = connect_to_table(SNOWFLAKE_CONN_INFO, full_qual_source_name, source_key_col)
+        snowflake_table2 = connect_to_table(SNOWFLAKE_CONN_INFO, full_qual_target_name, target_key_col)
+        materialize_table_name = f"{full_qual_target_name}_DIFF"
+
+        for different_row in diff_tables(snowflake_table, snowflake_table2, extra_columns=source_col_list, materialize_to_table=materialize_table_name):
+            pass
+
+        diff_op = pd.read_sql_query(f"SELECT * FROM {materialize_table_name};", conn)
+        not_in_target = diff_op.loc[(diff_op['is_exclusive_a']) & (~diff_op['is_exclusive_b'])]
+        not_in_source = diff_op.loc[(~diff_op['is_exclusive_a']) & (diff_op['is_exclusive_b'])]
+        value_mismatch = diff_op.loc[(~diff_op['is_exclusive_a']) & (~diff_op['is_exclusive_b'])]
+
+        total_not_in_target = len(not_in_target)
+        total_not_in_source = len(not_in_source)
+        total_value_mismatch = len(value_mismatch)
+
+        fig_count = make_subplots(rows=1, cols=3, specs=[[{"type": "indicator"}, {"type": "indicator"}, {"type": "indicator"}]], horizontal_spacing=0, vertical_spacing=0)
+
+        fig_count.add_trace(go.Indicator(mode="number", value=total_not_in_target, title="<b>Missing in Target</b>", number={'font_color': 'red'}), row=1, col=1)
+        fig_count.add_trace(go.Indicator(mode="number", value=total_not_in_source, title="<b>Missing in Source</b>", number={'font_color': 'black'}), row=1, col=2)
+        fig_count.add_trace(go.Indicator(mode="number", value=total_value_mismatch, title="<b>Value Mismatch</b>", number={'font_color': 'orange'}), row=1, col=3)
+
+        fig_count.update_layout(font_family="Arial", margin=dict(l=10, r=10, t=10, b=10), width=800, height=300)
+        st.plotly_chart(fig_count, use_container_width=True)
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.subheader("Missing in Target Table")
+            not_in_target_csv = convert_df_csv(not_in_target)
+            st.download_button("Click to Download", not_in_target_csv, "not_in_target.csv", "text/csv", key='download-csv-not_in_target')
+            st.write(not_in_target[f"{source_key_col}_a"])
+
+        with col2:
+            st.subheader("Missing in Source Table")
+            not_in_source_csv = convert_df_csv(not_in_source)
+            st.download_button("Click to Download", not_in_source_csv, "not_in_source.csv", "text/csv", key='download-csv-not_in_source')
+            st.write(not_in_source[f"{source_key_col}_b"])
+
+        with col3:
+            st.subheader("Value Mismatch")
+            value_mismatch_csv = convert_df_csv(value_mismatch)
+            st.download_button("Click to Download", value_mismatch_csv, "value_mismatch.csv", "text/csv", key='download-csv-value_mismatch')
+            st.write(value_mismatch[f"{source_key_col}_a"])
 
 except Exception as er:
     st.error("Please select a valid (non-empty) schema/table combination")
