@@ -50,40 +50,37 @@ def convert_df_csv(df):
 
 # Load Snowflake DB list and other selections
 def load_sf_db_list(count):
-    db_list = run_query_sf(f"SELECT DATABASE_NAME, CONVERT_TIMEZONE('{current_tz}', CREATED) as CREATED_TIME, DATABASE_OWNER, COMMENT FROM SNOWFLAKE.INFORMATION_SCHEMA.DATABASES ORDER BY CREATED_TIME DESC;")
-    db_list_df = pd.DataFrame(db_list, columns=['DATABASE_NAME', 'CREATED', 'DATABASE_OWNER', 'COMMENT'])
-    
-    if db_list_df.empty:
-        raise ValueError("No databases found in Snowflake.")
-    
-    db_name = st.selectbox('Please select the database that you would like to compare?', db_list_df['DATABASE_NAME'], key=f'db_{count}')
-    
-    schema_list = run_query_sf(f"SHOW TERSE SCHEMAS IN {db_name};")
-    schema_list_df = pd.DataFrame(schema_list, columns=['created_on', 'name', 'kind', 'database_name', 'SCHEMA_NAME'])
-    
-    if schema_list_df.empty:
-        raise ValueError(f"No schemas found in database: {db_name}.")
-    
-    schema_name = st.selectbox('Please select the schema that you would like to compare?', schema_list_df['name'], key=f'schema_{count}')
-    
-    table_list = run_query_sf(f"SHOW TERSE TABLES IN SCHEMA {db_name}.{schema_name};")
-    table_list_df = pd.DataFrame(table_list, columns=['created_on', 'name', 'kind', 'database_name', 'SCHEMA_NAME'])
-    
-    if table_list_df.empty:
-        raise ValueError(f"No tables found in schema: {schema_name} of database: {db_name}.")
-    
-    table_name = st.selectbox('Please select the table that you would like to compare?', table_list_df['name'], key=f'table_{count}')
-    
-    column_list = run_query_sf(f"SHOW COLUMNS IN {db_name}.{schema_name}.{table_name};")
-    column_list_df = pd.DataFrame(column_list, columns=['table_name', 'schema_name', 'column_name', 'data_type', 'null?', 'default', 'kind', 'expression', 'comment', 'database_name', 'autoincrement'])
-    
-    if column_list_df.empty:
-        raise ValueError(f"No columns found in table: {table_name} of schema: {schema_name} in database: {db_name}.")
-    
-    key_column_name = st.selectbox('Please select the unique key (primary key)?', column_list_df['column_name'], key=f'key_{count}')
+    try:
+        db_list = run_query_sf(f"SELECT DATABASE_NAME, CONVERT_TIMEZONE('{current_tz}', CREATED) as CREATED_TIME, DATABASE_OWNER, COMMENT FROM SNOWFLAKE.INFORMATION_SCHEMA.DATABASES ORDER BY CREATED_TIME DESC;")
+        if not db_list:
+            raise ValueError("No databases found.")
+        db_list_df = pd.DataFrame(db_list, columns=['DATABASE_NAME', 'CREATED', 'DATABASE_OWNER', 'COMMENT'])
+        db_name = st.selectbox('Please select the database that you would like to compare?', db_list_df['DATABASE_NAME'], key=f'db_{count}')
 
-    full_qual_name = f"{db_name}.{schema_name}.{table_name}"
-    return full_qual_name, key_column_name, tuple(column_list_df['column_name'])
+        schema_list = run_query_sf(f"SHOW TERSE SCHEMAS IN {db_name};")
+        if not schema_list:
+            raise ValueError("No schemas found.")
+        schema_list_df = pd.DataFrame(schema_list, columns=['created_on', 'name', 'kind', 'database_name', 'SCHEMA_NAME'])
+        schema_name = st.selectbox('Please select the schema that you would like to compare?', schema_list_df['name'], key=f'schema_{count}')
+
+        table_list = run_query_sf(f"SHOW TERSE TABLES IN SCHEMA {db_name}.{schema_name};")
+        if not table_list:
+            raise ValueError("No tables found.")
+        table_list_df = pd.DataFrame(table_list, columns=['created_on', 'name', 'kind', 'database_name', 'SCHEMA_NAME'])
+        table_name = st.selectbox('Please select the table that you would like to compare?', table_list_df['name'], key=f'table_{count}')
+
+        column_list = run_query_sf(f"SHOW COLUMNS IN {db_name}.{schema_name}.{table_name};")
+        if not column_list:
+            raise ValueError("No columns found.")
+        column_list_df = pd.DataFrame(column_list, columns=['table_name', 'schema_name', 'column_name', 'data_type', 'null?', 'default', 'kind', 'expression', 'comment', 'database_name', 'autoincrement'])
+        key_column_name = st.selectbox('Please select the unique key (primary key)?', column_list_df['column_name'], key=f'key_{count}')
+
+        full_qual_name = f"{db_name}.{schema_name}.{table_name}"
+        return full_qual_name, key_column_name, tuple(column_list_df['column_name'])
+    except Exception as e:
+        logging.error(f"Error loading database/schema/table list: {e}")
+        st.error(f"Error loading database/schema/table list: {e}")
+        return None, None, None
 
 # Main application logic
 count_in = 0
@@ -95,70 +92,74 @@ with col1:
         col1.header("Source Table")
         count_in = 1
         full_qual_source_name, source_key_col, source_col_list = load_sf_db_list(count_in)
-        st.write(full_qual_source_name)
+        if full_qual_source_name:
+            st.write(full_qual_source_name)
     except Exception as er:
         st.error("Error loading Source Table. Please select a valid (non-empty) schema/table combination.")
-        logging.error(er)
+        logging.error(f"Source Table Error: {er}")
 
 with col2:
     try:
         col2.header("Target Table")
         count_in = 100
         full_qual_target_name, target_key_col, target_col_list = load_sf_db_list(count_in)
-        st.write(full_qual_target_name)
+        if full_qual_target_name:
+            st.write(full_qual_target_name)
     except Exception as er:
         st.error("Error loading Target Table. Please select a valid (non-empty) schema/table combination.")
-        logging.error(er)
+        logging.error(f"Target Table Error: {er}")
 
 if st.button('Show Table Diff', use_container_width=True):
     try:
-        snowflake_table = connect_to_table(SNOWFLAKE_CONN_INFO, full_qual_source_name, source_key_col)
-        snowflake_table2 = connect_to_table(SNOWFLAKE_CONN_INFO, full_qual_target_name, target_key_col)
-        materialize_table_name = f"{full_qual_target_name}_DIFF"
+        if full_qual_source_name and full_qual_target_name:
+            snowflake_table = connect_to_table(SNOWFLAKE_CONN_INFO, full_qual_source_name, source_key_col)
+            snowflake_table2 = connect_to_table(SNOWFLAKE_CONN_INFO, full_qual_target_name, target_key_col)
+            materialize_table_name = f"{full_qual_target_name}_DIFF"
 
-        for different_row in diff_tables(snowflake_table, snowflake_table2, extra_columns=source_col_list, materialize_to_table=materialize_table_name):
-            pass
+            for different_row in diff_tables(snowflake_table, snowflake_table2, extra_columns=source_col_list, materialize_to_table=materialize_table_name):
+                pass
 
-        diff_op = pd.read_sql_query(f"SELECT * FROM {materialize_table_name};", conn)
-        not_in_target = diff_op.loc[(diff_op['is_exclusive_a']) & (~diff_op['is_exclusive_b'])]
-        not_in_source = diff_op.loc[(~diff_op['is_exclusive_a']) & (diff_op['is_exclusive_b'])]
-        value_mismatch = diff_op.loc[(~diff_op['is_exclusive_a']) & (~diff_op['is_exclusive_b'])]
+            diff_op = pd.read_sql_query(f"SELECT * FROM {materialize_table_name};", conn)
+            not_in_target = diff_op.loc[(diff_op['is_exclusive_a']) & (~diff_op['is_exclusive_b'])]
+            not_in_source = diff_op.loc[(~diff_op['is_exclusive_a']) & (diff_op['is_exclusive_b'])]
+            value_mismatch = diff_op.loc[(~diff_op['is_exclusive_a']) & (~diff_op['is_exclusive_b'])]
 
-        total_not_in_target = len(not_in_target)
-        total_not_in_source = len(not_in_source)
-        total_value_mismatch = len(value_mismatch)
+            total_not_in_target = len(not_in_target)
+            total_not_in_source = len(not_in_source)
+            total_value_mismatch = len(value_mismatch)
 
-        fig_count = make_subplots(rows=1, cols=3, specs=[[{"type": "indicator"}, {"type": "indicator"}, {"type": "indicator"}]], horizontal_spacing=0, vertical_spacing=0)
+            fig_count = make_subplots(rows=1, cols=3, specs=[[{"type": "indicator"}, {"type": "indicator"}, {"type": "indicator"}]], horizontal_spacing=0, vertical_spacing=0)
 
-        fig_count.add_trace(go.Indicator(mode="number", value=total_not_in_target, title="<b>Missing in Target</b>", number={'font_color': 'red'}), row=1, col=1)
-        fig_count.add_trace(go.Indicator(mode="number", value=total_not_in_source, title="<b>Missing in Source</b>", number={'font_color': 'black'}), row=1, col2)
-        fig_count.add_trace(go.Indicator(mode="number", value=total_value_mismatch, title="<b>Value Mismatch</b>", number={'font_color': 'orange'}), row=1, col=3)
+            fig_count.add_trace(go.Indicator(mode="number", value=total_not_in_target, title="<b>Missing in Target</b>", number={'font_color': 'red'}), row=1, col=1)
+            fig_count.add_trace(go.Indicator(mode="number", value=total_not_in_source, title="<b>Missing in Source</b>", number={'font_color': 'black'}), row=1, col=2)
+            fig_count.add_trace(go.Indicator(mode="number", value=total_value_mismatch, title="<b>Value Mismatch</b>", number={'font_color': 'orange'}), row=1, col=3)
 
-        fig_count.update_layout(font_family="Arial", margin=dict(l=10, r=10, t=10, b=10), width=800, height=300)
-        st.plotly_chart(fig_count, use_container_width=True)
+            fig_count.update_layout(font_family="Arial", margin=dict(l=10, r=10, t=10, b=10), width=800, height=300)
+            st.plotly_chart(fig_count, use_container_width=True)
 
-        col1, col2, col3 = st.columns(3)
+            col1, col2, col3 = st.columns(3)
 
-        with col1:
-            st.subheader("Missing in Target Table")
-            not_in_target_csv = convert_df_csv(not_in_target)
-            st.download_button("Click to Download", not_in_target_csv, "not_in_target.csv", "text/csv", key='download-csv-not_in_target')
-            st.write(not_in_target[f"{source_key_col}_a"])
+            with col1:
+                st.subheader("Missing in Target Table")
+                not_in_target_csv = convert_df_csv(not_in_target)
+                st.download_button("Click to Download", not_in_target_csv, "not_in_target.csv", "text/csv", key='download-csv-not_in_target')
+                st.write(not_in_target[f"{source_key_col}_a"])
 
-        with col2:
-            st.subheader("Missing in Source Table")
-            not_in_source_csv = convert_df_csv(not_in_source)
-            st.download_button("Click to Download", not_in_source_csv, "not_in_source.csv", "text/csv", key='download-csv-not_in_source')
-            st.write(not_in_source[f"{source_key_col}_b"])
+            with col2:
+                st.subheader("Missing in Source Table")
+                not_in_source_csv = convert_df_csv(not_in_source)
+                st.download_button("Click to Download", not_in_source_csv, "not_in_source.csv", "text/csv", key='download-csv-not_in_source')
+                st.write(not_in_source[f"{source_key_col}_b"])
 
-        with col3:
-            st.subheader("Value Mismatch")
-            value_mismatch_csv = convert_df_csv(value_mismatch)
-            st.download_button("Click to Download", value_mismatch_csv, "value_mismatch.csv", "text/csv", key='download-csv-value_mismatch')
-            st.write(value_mismatch[f"{source_key_col}_a"])
-
+            with col3:
+                st.subheader("Value Mismatch")
+                value_mismatch_csv = convert_df_csv(value_mismatch)
+                st.download_button("Click to Download", value_mismatch_csv, "value_mismatch.csv", "text/csv", key='download-csv-value_mismatch')
+                st.write(value_mismatch[f"{source_key_col}_a"])
+        else:
+            st.error("Source and Target tables must be selected before showing table diff.")
     except Exception as er:
         st.error("Error calculating table differences. Please check your selections and try again.")
         logging.error(er)
 
-st.markdown("You can add more tabs to add more functionality")
+st.markdown("You can add more tabs to add more functionality
