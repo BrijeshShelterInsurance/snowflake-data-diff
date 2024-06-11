@@ -74,16 +74,14 @@ count_in = 0
 try:
     col1, col2 = st.columns(2)
     
-    with col1:
+    with col1,col2:
         col1.header("Source Table")
-        count_in = 1
-        full_qual_source_name, source_key_col, source_col_list = load_sf_db_list(count_in)
-        st.write(full_qual_source_name)
-
-    with col2:
         col2.header("Target Table")
-        count_in = 100
-        full_qual_target_name, target_key_col, target_col_list = load_sf_db_list(count_in)
+        count_in_1 = 1
+        full_qual_source_name, source_key_col, source_col_list = load_sf_db_list(count_in_1)
+        st.write(full_qual_source_name)
+        count_in_2 = 100
+        full_qual_target_name, target_key_col, target_col_list = load_sf_db_list(count_in_2)
         st.write(full_qual_target_name)
 
     if st.button('Show Table Diff', use_container_width=True):
