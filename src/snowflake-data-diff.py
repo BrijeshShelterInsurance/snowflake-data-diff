@@ -51,38 +51,32 @@ def convert_df_csv(df):
 # Load Snowflake DB list and other selections
 def load_sf_db_list(count):
     try:
-        # Load database list
-        db_list = run_query_sf("SELECT DATABASE_NAME, date_trunc('second', CONVERT_TIMEZONE(" + current_tz + ", CREATED)) as CREATED_TIME, DATABASE_OWNER, COMMENT FROM SNOWFLAKE.INFORMATION_SCHEMA.DATABASES ORDER BY CREATED_TIME DESC;")
+        db_list = run_query_sf(f"SELECT DATABASE_NAME, CONVERT_TIMEZONE('{current_tz}', CREATED) as CREATED_TIME, DATABASE_OWNER, COMMENT FROM SNOWFLAKE.INFORMATION_SCHEMA.DATABASES ORDER BY CREATED_TIME DESC;")
         if not db_list:
             raise ValueError("No databases found.")
         db_list_df = pd.DataFrame(db_list, columns=['DATABASE_NAME', 'CREATED', 'DATABASE_OWNER', 'COMMENT'])
-        db_name = st.selectbox('Please select the database that you would like to compare?', db_list_df['DATABASE_NAME'], key=count + 1)
+        db_name = st.selectbox('Please select the database that you would like to compare?', db_list_df['DATABASE_NAME'], key=f'db_{count}')
 
-        # Load schema list for the selected database
         schema_list = run_query_sf(f"SHOW TERSE SCHEMAS IN {db_name};")
         if not schema_list:
             raise ValueError("No schemas found.")
         schema_list_df = pd.DataFrame(schema_list, columns=['created_on', 'name', 'kind', 'database_name', 'SCHEMA_NAME'])
-        schema_name = st.selectbox('Please select the schema that you would like to compare?', schema_list_df["name"], key=count + 2)
+        schema_name = st.selectbox('Please select the schema that you would like to compare?', schema_list_df['name'], key=f'schema_{count}')
 
-        # Load table list for the selected schema
         table_list = run_query_sf(f"SHOW TERSE TABLES IN SCHEMA {db_name}.{schema_name};")
         if not table_list:
             raise ValueError("No tables found.")
         table_list_df = pd.DataFrame(table_list, columns=['created_on', 'name', 'kind', 'database_name', 'SCHEMA_NAME'])
-        table_name = st.selectbox('Please select the table that you would like to compare?', table_list_df["name"], key=count + 3)
+        table_name = st.selectbox('Please select the table that you would like to compare?', table_list_df['name'], key=f'table_{count}')
 
-        # Load column list for the selected table
         column_list = run_query_sf(f"SHOW COLUMNS IN {db_name}.{schema_name}.{table_name};")
         if not column_list:
             raise ValueError("No columns found.")
         column_list_df = pd.DataFrame(column_list, columns=['table_name', 'schema_name', 'column_name', 'data_type', 'null?', 'default', 'kind', 'expression', 'comment', 'database_name', 'autoincrement'])
-        key_column_name = st.selectbox('Please select the unique key (primary key)?', column_list_df["column_name"], key=count + 4)
+        key_column_name = st.selectbox('Please select the unique key (primary key)?', column_list_df['column_name'], key=f'key_{count}')
 
-        # Construct fully qualified table name
         full_qual_name = f"{db_name}.{schema_name}.{table_name}"
-
-        return full_qual_name, key_column_name, tuple(column_list_df["column_name"])
+        return full_qual_name, key_column_name, tuple(column_list_df['column_name'])
     except Exception as e:
         logging.error(f"Error loading database/schema/table list: {e}")
         st.error(f"Error loading database/schema/table list: {e}")
