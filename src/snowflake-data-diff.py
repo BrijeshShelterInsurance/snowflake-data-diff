@@ -55,7 +55,7 @@ def load_sf_db_list(count):
         if not db_list:
             raise ValueError("No databases found.")
         print("db_list:", db_list)
-        db_list_df = pd.DataFrame(db_list, columns=['DATABASE_NAME', 'CREATED', 'DATABASE_OWNER', 'COMMENT', 'UNKNOWN_COLUMN'])
+        db_list_df = pd.DataFrame(db_list, columns=['DATABASE_NAME', 'CREATED', 'DATABASE_OWNER', 'COMMENT'])
         db_name = st.selectbox('Please select the database that you would like to compare?', db_list_df, key=count + 1)
 
         schema_list = run_query_sf("SHOW TERSE SCHEMAS IN " + db_name + ";")
