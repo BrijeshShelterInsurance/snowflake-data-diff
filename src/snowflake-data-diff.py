@@ -57,13 +57,13 @@ def load_sf_db_list(count):
         db_list_df = pd.DataFrame(db_list, columns=['DATABASE_NAME', 'CREATED', 'DATABASE_OWNER', 'COMMENT'])
         db_name = st.selectbox('Please select the database that you would like to compare?', db_list_df, key=count + 1)
 
-        schema_list = run_query_sf("SHOW TERSE SCHEMAS IN " + db_name + ";")
+        schema_list = run_query_sf("SHOW SCHEMAS IN " + db_name + ";")
         if not schema_list:
             raise ValueError("No schemas found.")
         schema_list_df = pd.DataFrame(schema_list, columns=['created_on', 'name', 'kind', 'database_name', 'SCHEMA_NAME'])
         schema_name = st.selectbox('Please select the schema that you would like to compare?', schema_list_df["name"], key=count + 2)
 
-        table_list = run_query_sf("SHOW TERSE TABLES IN SCHEMA " + db_name + "." + schema_name + ";")
+        table_list = run_query_sf("SHOW TABLES IN SCHEMA " + db_name + "." + schema_name + ";")
         if not table_list:
             raise ValueError("No tables found.")
         print("Table List:", table_list)  # Print column_list for debugging
