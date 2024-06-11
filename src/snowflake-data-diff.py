@@ -52,7 +52,6 @@ def convert_df_csv(df):
 def load_sf_db_list(count):
     try:
         db_list = run_query_sf(f"SELECT DATABASE_NAME, CONVERT_TIMEZONE('{current_tz}', CREATED) as CREATED_TIME, DATABASE_OWNER, COMMENT FROM SNOWFLAKE.INFORMATION_SCHEMA.DATABASES ORDER BY CREATED_TIME DESC;")
-        
         if not db_list:
             raise ValueError("No databases found.")
         db_list_df = pd.DataFrame(db_list, columns=['DATABASE_NAME', 'CREATED', 'DATABASE_OWNER', 'COMMENT'])
@@ -67,6 +66,7 @@ def load_sf_db_list(count):
         table_list = run_query_sf("SHOW TERSE TABLES IN SCHEMA " + db_name + "." + schema_name + ";")
         if not table_list:
             raise ValueError("No tables found.")
+        print("Table List:", table_list)  # Print column_list for debugging
         table_list_df = pd.DataFrame(table_list, columns=['created_on', 'name', 'kind', 'database_name', 'SCHEMA_NAME'])
         table_name = st.selectbox('Please select the table that you would like to compare?', table_list_df["name"], key=count + 3)
 
