@@ -152,7 +152,7 @@ def convert_df_csv(df):
 
 # Creating Snowflake Connection Object END
 # TAB definition START
-#tab1, tab2 = st.tabs(["📈 SINGLE TABLE", "🗃 ABOUT"])
+tab1, tab2 = st.tabs(["📈 SINGLE TABLE", "🗃 ABOUT"])
 
 count_in = 0
 
@@ -160,6 +160,7 @@ count_in = 0
 #with tab1:
 try:
     col1, col2 = st.columns(2)
+
     with col1:
         col1.header("Source Table")
         count_in = 1
