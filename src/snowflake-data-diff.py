@@ -52,18 +52,34 @@ def convert_df_csv(df):
 def load_sf_db_list(count):
     db_list = run_query_sf(f"SELECT DATABASE_NAME, CONVERT_TIMEZONE('{current_tz}', CREATED) as CREATED_TIME, DATABASE_OWNER, COMMENT FROM SNOWFLAKE.INFORMATION_SCHEMA.DATABASES ORDER BY CREATED_TIME DESC;")
     db_list_df = pd.DataFrame(db_list, columns=['DATABASE_NAME', 'CREATED', 'DATABASE_OWNER', 'COMMENT'])
+    
+    if db_list_df.empty:
+        raise ValueError("No databases found in Snowflake.")
+    
     db_name = st.selectbox('Please select the database that you would like to compare?', db_list_df['DATABASE_NAME'], key=f'db_{count}')
-
+    
     schema_list = run_query_sf(f"SHOW TERSE SCHEMAS IN {db_name};")
     schema_list_df = pd.DataFrame(schema_list, columns=['created_on', 'name', 'kind', 'database_name', 'SCHEMA_NAME'])
+    
+    if schema_list_df.empty:
+        raise ValueError(f"No schemas found in database: {db_name}.")
+    
     schema_name = st.selectbox('Please select the schema that you would like to compare?', schema_list_df['name'], key=f'schema_{count}')
-
+    
     table_list = run_query_sf(f"SHOW TERSE TABLES IN SCHEMA {db_name}.{schema_name};")
     table_list_df = pd.DataFrame(table_list, columns=['created_on', 'name', 'kind', 'database_name', 'SCHEMA_NAME'])
+    
+    if table_list_df.empty:
+        raise ValueError(f"No tables found in schema: {schema_name} of database: {db_name}.")
+    
     table_name = st.selectbox('Please select the table that you would like to compare?', table_list_df['name'], key=f'table_{count}')
-
+    
     column_list = run_query_sf(f"SHOW COLUMNS IN {db_name}.{schema_name}.{table_name};")
     column_list_df = pd.DataFrame(column_list, columns=['table_name', 'schema_name', 'column_name', 'data_type', 'null?', 'default', 'kind', 'expression', 'comment', 'database_name', 'autoincrement'])
+    
+    if column_list_df.empty:
+        raise ValueError(f"No columns found in table: {table_name} of schema: {schema_name} in database: {db_name}.")
+    
     key_column_name = st.selectbox('Please select the unique key (primary key)?', column_list_df['column_name'], key=f'key_{count}')
 
     full_qual_name = f"{db_name}.{schema_name}.{table_name}"
@@ -115,7 +131,7 @@ if st.button('Show Table Diff', use_container_width=True):
         fig_count = make_subplots(rows=1, cols=3, specs=[[{"type": "indicator"}, {"type": "indicator"}, {"type": "indicator"}]], horizontal_spacing=0, vertical_spacing=0)
 
         fig_count.add_trace(go.Indicator(mode="number", value=total_not_in_target, title="<b>Missing in Target</b>", number={'font_color': 'red'}), row=1, col=1)
-        fig_count.add_trace(go.Indicator(mode="number", value=total_not_in_source, title="<b>Missing in Source</b>", number={'font_color': 'black'}), row=1, col=2)
+        fig_count.add_trace(go.Indicator(mode="number", value=total_not_in_source, title="<b>Missing in Source</b>", number={'font_color': 'black'}), row=1, col2)
         fig_count.add_trace(go.Indicator(mode="number", value=total_value_mismatch, title="<b>Value Mismatch</b>", number={'font_color': 'orange'}), row=1, col=3)
 
         fig_count.update_layout(font_family="Arial", margin=dict(l=10, r=10, t=10, b=10), width=800, height=300)
