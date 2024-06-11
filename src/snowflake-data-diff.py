@@ -162,4 +162,4 @@ if st.button('Show Table Diff', use_container_width=True):
         st.error("Error calculating table differences. Please check your selections and try again.")
         logging.error(er)
 
-st.markdown("You can add more tabs to add more functionality
+st.markdown("You can add more tabs to add more functionality")
