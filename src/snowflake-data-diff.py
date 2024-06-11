@@ -72,7 +72,7 @@ def load_sf_db_list(count):
         column_list = run_query_sf(f"SHOW COLUMNS IN {db_name}.{schema_name}.{table_name};")
         if not column_list:
             raise ValueError("No columns found.")
-        column_list_df = pd.DataFrame(column_list, columns=['table_name', 'schema_name', 'column_name', 'data_type', 'null?', 'default', 'kind', 'expression', 'comment', 'database_name', 'autoincrement'])
+        column_list_df = pd.DataFrame(column_list, columns=['column_name'])
         key_column_name = st.selectbox('Please select the unique key (primary key)?', column_list_df['column_name'], key=f'key_{count}')
 
         full_qual_name = f"{db_name}.{schema_name}.{table_name}"
