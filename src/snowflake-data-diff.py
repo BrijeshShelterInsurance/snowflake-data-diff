@@ -70,6 +70,7 @@ def load_sf_db_list(count):
         table_name = st.selectbox('Please select the table that you would like to compare?', table_list_df['name'], key=f'table_{count}')
 
         column_list = run_query_sf(f"SHOW COLUMNS IN {db_name}.{schema_name}.{table_name};")
+        print("Column List:", column_list)  # Print column_list for debugging
         if not column_list:
             raise ValueError("No columns found.")
         column_list_df = pd.DataFrame(column_list, columns=['column_name'])  # Select only the 'column_name'
@@ -77,10 +78,12 @@ def load_sf_db_list(count):
 
         full_qual_name = f"{db_name}.{schema_name}.{table_name}"
         return full_qual_name, key_column_name, tuple(column_list_df['column_name'])
+        
     except Exception as e:
         logging.error(f"Error loading database/schema/table list: {e}")
         st.error(f"Error loading database/schema/table list: {e}")
         return None, None, None
+
 
 
 
