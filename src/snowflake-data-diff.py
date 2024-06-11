@@ -163,7 +163,6 @@ try:
     with col1:
         col1.header("Source Table")
         count_in = 1
-
         full_qual_source_name, source_key_col, source_col_list = load_sf_db_list(count_in)
         st.write(full_qual_source_name)
 
