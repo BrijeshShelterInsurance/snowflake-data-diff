@@ -71,22 +71,31 @@ def load_sf_db_list(count):
 
 # Main application logic
 count_in = 0
-try:
-    col1, col2 = st.columns(2)
-    
-    with col1:
+
+col1, col2 = st.columns(2)
+
+with col1:
+    try:
         col1.header("Source Table")
         count_in = 1
         full_qual_source_name, source_key_col, source_col_list = load_sf_db_list(count_in)
         st.write(full_qual_source_name)
+    except Exception as er:
+        st.error("Error loading Source Table. Please select a valid (non-empty) schema/table combination.")
+        logging.error(er)
 
-    with col2:
+with col2:
+    try:
         col2.header("Target Table")
         count_in = 100
         full_qual_target_name, target_key_col, target_col_list = load_sf_db_list(count_in)
         st.write(full_qual_target_name)
+    except Exception as er:
+        st.error("Error loading Target Table. Please select a valid (non-empty) schema/table combination.")
+        logging.error(er)
 
-    if st.button('Show Table Diff', use_container_width=True):
+if st.button('Show Table Diff', use_container_width=True):
+    try:
         snowflake_table = connect_to_table(SNOWFLAKE_CONN_INFO, full_qual_source_name, source_key_col)
         snowflake_table2 = connect_to_table(SNOWFLAKE_CONN_INFO, full_qual_target_name, target_key_col)
         materialize_table_name = f"{full_qual_target_name}_DIFF"
@@ -132,8 +141,8 @@ try:
             st.download_button("Click to Download", value_mismatch_csv, "value_mismatch.csv", "text/csv", key='download-csv-value_mismatch')
             st.write(value_mismatch[f"{source_key_col}_a"])
 
-except Exception as er:
-    st.error("Please select a valid (non-empty) schema/table combination")
-    logging.error(er)
+    except Exception as er:
+        st.error("Error calculating table differences. Please check your selections and try again.")
+        logging.error(er)
 
 st.markdown("You can add more tabs to add more functionality")
